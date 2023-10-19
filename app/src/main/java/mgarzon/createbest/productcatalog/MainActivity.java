@@ -3,19 +3,28 @@ package mgarzon.createbest.productcatalog;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import org.junit.Test;
+import android.widget.AdapterView;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+import java.util.ArrayList;
+import java.util.List;
 
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 
-import android.widget.AdapterView;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ListView;
-import android.widget.Toast;
 
-import java.util.ArrayList;
-import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -38,6 +47,8 @@ public class MainActivity extends AppCompatActivity {
 
         products = new ArrayList<>();
 
+        databaseProducts = FirebaseDatabase.getInstance().getReference("products");
+
         //adding an onclicklistener to button
         buttonAddProduct.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -56,6 +67,27 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    protected void onStart() {
+        super.onStart();
+        databaseProducts.addValueEventListener(new ValueEventListener()){
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot){
+                products.clear();
+
+                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+                    Product product = postSnapshot.getValue(Product.class);
+
+                    products.add(product);
+                }
+
+                ProductList productsAdapter = new ProductList(MainActivity.this, products);
+                listViewProducts.setAdaptder(productsAdapter);
+            }
+            public void onCancelled(DatabaseError database Error){
+
+            }
+        }
+    }
 
     @Override
     protected void onStart() {
@@ -102,16 +134,43 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateProduct(String id, String name, double price) {
 
-        Toast.makeText(getApplicationContext(), "NOT IMPLEMENTED YET", Toast.LENGTH_LONG).show();
+        DatabaseReference dR = FirebaseDatabase.getInstance().getReference("products").child(id);
+
+        Product product = new Product(id, name, price);
+        dR.setValue(product);
+
+        Toast.makeText(getApplicationContext(), "Product updated", Toast.LENGTH_LONG).show();
     }
 
     private void deleteProduct(String id) {
 
-        Toast.makeText(getApplicationContext(), "NOT IMPLEMENTED YET", Toast.LENGTH_LONG).show();
+        DatabaseReference dR = FirebaseDatabase.getInstance().getReference("products").child(id);
+        dR.removeValue();
+
+
+        Toast.makeText(getApplicationContext(), "Product Deleted", Toast.LENGTH_LONG).show();
+        return true;
     }
 
     private void addProduct() {
 
-        Toast.makeText(this, "NOT IMPLEMENTED YET", Toast.LENGTH_LONG).show();
+        String name = editTextName.getText().toString().trim();
+        double price = Double.parseDouble(String.valueOf(editTextPrice.getText().toString()));
+
+        if (!TextUtils.isEmpty(name)) {
+
+            String id = databaseProducts.push().getKey();
+            Product product = new Product(id, name, price);
+
+            databaseProducts.child(id).setValue(product);
+
+            editTextName.setText("");
+            editTextPrice.setText("");
+
+            Toast.makeText(this, "Product added", Toast.LENGTH_LONG).show();
+
+        }else {
+            Toast.makeText(this, "Please enter a name", Toast.LENGTH_LONG).show();
+        }
     }
 }
